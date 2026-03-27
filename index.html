@@ -26,7 +26,7 @@
             overflow: hidden;
         }
         
-        /* ⭐ 헤더 - 한줄로 넓이 조정 */
+        /* ⭐ 헤더 - 넓은 폭으로 최적화 */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -36,6 +36,7 @@
             display: flex;
             align-items: center;
             gap: 20px;
+            flex-wrap: wrap;
         }
         
         .header h1 {
@@ -53,12 +54,13 @@
         
         .controls {
             display: flex;
-            gap: 12px;
+            gap: 15px;
             background: rgba(255,255,255,0.15);
             padding: 8px 16px;
             border-radius: 8px;
             backdrop-filter: blur(10px);
             align-items: center;
+            flex-wrap: wrap;
         }
         
         .control-group {
@@ -73,9 +75,10 @@
             color: rgba(255,255,255,0.9);
         }
         
+        /* ⭐ 선택창 폭 확대 (140px → 200px) */
         .multi-select-container {
             position: relative;
-            width: 140px;
+            width: 200px;
         }
         
         .multi-select-button {
@@ -91,6 +94,9 @@
             color: #333;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             height: 30px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
         .multi-select-dropdown {
@@ -139,6 +145,7 @@
             color: #333;
         }
         
+        /* ⭐ 권역 선택창 폭 확대 (120px → 160px) */
         select {
             background: white;
             color: #333;
@@ -147,9 +154,36 @@
             padding: 0 10px;
             font-size: 12px;
             height: 30px;
-            width: 120px;
+            width: 160px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             cursor: pointer;
+        }
+        
+        /* ⭐ 환경/투자 체크박스 그룹 */
+        .env-invest-group {
+            display: flex;
+            gap: 12px;
+            background: rgba(255,255,255,0.25);
+            padding: 6px 12px;
+            border-radius: 6px;
+            align-items: center;
+        }
+        
+        .env-invest-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .env-invest-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4CAF50;
         }
         
         .checkbox-wrapper {
@@ -163,7 +197,6 @@
             cursor: pointer;
             font-size: 13px;
             font-weight: bold;
-            margin-top: 14px;
         }
         
         .checkbox-wrapper input[type="checkbox"] {
@@ -544,17 +577,6 @@
             border-radius: 3px;
         }
         
-        @media (max-width: 1024px) {
-            .main-content {
-                flex-direction: column;
-            }
-            .site-list-panel {
-                width: 100%;
-                max-height: 300px;
-            }
-        }
-        
-        /* 로딩 표시 */
         .loading-overlay {
             position: fixed;
             top: 0;
@@ -589,7 +611,6 @@
     </style>
 </head>
 <body>
-    <!-- 로딩 표시 -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <div>데이터 로딩 중...</div>
@@ -599,11 +620,25 @@
         <h1>⚡ 전국 충전기 설치현황</h1>
         <div class="controls-wrapper">
             <div class="controls">
+                <!-- ⭐ 27년만료 대상충전기 -->
                 <label class="checkbox-wrapper">
                     <input type="checkbox" id="categoryOnlyFilter">
                     <span>🎯 27년만료 대상충전기</span>
                 </label>
                 
+                <!-- ⭐ 환경/투자 체크박스 그룹 -->
+                <div class="env-invest-group">
+                    <label class="env-invest-item">
+                        <input type="checkbox" id="envTypeFilter" checked>
+                        <span>🌱 환경</span>
+                    </label>
+                    <label class="env-invest-item">
+                        <input type="checkbox" id="investTypeFilter" checked>
+                        <span>💰 투자</span>
+                    </label>
+                </div>
+                
+                <!-- 구분 -->
                 <div class="control-group">
                     <label>🏢 구분</label>
                     <div class="multi-select-container">
@@ -621,6 +656,7 @@
                     </div>
                 </div>
                 
+                <!-- 모델분류 -->
                 <div class="control-group">
                     <label>🔧 모델분류</label>
                     <div class="multi-select-container">
@@ -638,6 +674,7 @@
                     </div>
                 </div>
                 
+                <!-- 권역 -->
                 <div class="control-group">
                     <label>🌏 권역</label>
                     <select id="regionFilter">
@@ -727,13 +764,11 @@
     </div>
 
     <script>
-        // ⭐ JSON 데이터 외부 로드
         let allSites = [];
         let map, currentMarkers = [], markerClusterGroup;
         let categoryChart, modelChart, regionChart;
         let currentFilteredSites = [], searchFilteredSites = [];
         
-        // 데이터 로드
         async function loadData() {
             try {
                 const response = await fetch('charging_data.json');
@@ -743,10 +778,8 @@
                 allSites = await response.json();
                 console.log('✅ ' + allSites.length + '개 사이트 로드 완료');
                 
-                // 로딩 화면 제거
                 document.getElementById('loadingOverlay').style.display = 'none';
                 
-                // 초기화
                 initMap();
                 initFilters();
                 initCharts();
@@ -765,14 +798,9 @@
         }
         
         const timeColors = {
-            '만료': '#E74C3C',
-            '1개월': '#FF8C42',
-            '3개월': '#F39C12',
-            '6개월': '#27AE60',
-            '26하반기': '#17A2B8',
-            '27상반기': '#007BFF',
-            '27하반기': '#6F42C1',
-            '기타': '#ADB5BD'
+            '만료': '#E74C3C', '1개월': '#FF8C42', '3개월': '#F39C12',
+            '6개월': '#27AE60', '26하반기': '#17A2B8', '27상반기': '#007BFF',
+            '27하반기': '#6F42C1', '기타': '#ADB5BD'
         };
         
         function getCategoryColor(category) {
@@ -880,6 +908,10 @@
             });
             
             setupDropdowns();
+            
+            // ⭐ 환경/투자 필터 이벤트 연결
+            document.getElementById('envTypeFilter').addEventListener('change', applyFilters);
+            document.getElementById('investTypeFilter').addEventListener('change', applyFilters);
             document.getElementById('categoryOnlyFilter').addEventListener('change', applyFilters);
         }
         
@@ -1017,9 +1049,14 @@
             }
         }
         
+        // ⭐ 환경/투자 필터 적용
         function applyFilters() {
             const regionFilter = document.getElementById('regionFilter').value;
             const categoryOnly = document.getElementById('categoryOnlyFilter').checked;
+            
+            // ⭐ 환경/투자 체크 상태
+            const showEnv = document.getElementById('envTypeFilter').checked;
+            const showInvest = document.getElementById('investTypeFilter').checked;
             
             const selectedCategories = Array.from(
                 document.querySelectorAll('.category-checkbox:checked')
@@ -1034,7 +1071,25 @@
                 const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(site.category);
                 const matchModel = selectedModels.length === 0 || selectedModels.includes(site.model_class);
                 const hasCategory = !categoryOnly || (site.category && site.category.trim() !== '');
-                return matchRegion && matchCategory && matchModel && hasCategory;
+                
+                // ⭐ 환경/투자 필터링
+                let matchType = true;
+                const category = site.category || '';
+                
+                if (!showEnv && !showInvest) {
+                    matchType = false; // 둘 다 체크 해제 시 아무것도 표시 안함
+                } else {
+                    // 환경/투자 표기가 없는 경우는 항상 통과
+                    if (!category.includes('환경') && !category.includes('투자')) {
+                        matchType = true;
+                    } else {
+                        // 환경/투자 표기가 있는 경우만 필터링 적용
+                        matchType = (showEnv && category.includes('환경')) || 
+                                   (showInvest && category.includes('투자'));
+                    }
+                }
+                
+                return matchRegion && matchCategory && matchModel && hasCategory && matchType;
             });
             
             applySearchFilter();
@@ -1201,7 +1256,6 @@
             regionChart = new Chart(document.getElementById('regionChart'), JSON.parse(JSON.stringify(barConfig)));
         }
         
-        // ⭐ 내림차순 정렬 헬퍼 함수
         function sortObjectByValueDesc(obj) {
             return Object.entries(obj)
                 .sort((a, b) => b[1] - a[1])
@@ -1211,7 +1265,6 @@
                 }, {});
         }
         
-        // ⭐ 내림차순 정렬 적용
         function updateCharts(sites) {
             const categoryStats = {};
             sites.forEach(s => {
@@ -1240,7 +1293,6 @@
                 regionStats[s.region] = (regionStats[s.region] || 0) + 1;
             });
             
-            // ⭐ 내림차순 정렬
             const sortedCategory = sortObjectByValueDesc(categoryStats);
             const sortedModel = sortObjectByValueDesc(modelStats);
             const sortedRegion = sortObjectByValueDesc(regionStats);
@@ -1288,7 +1340,6 @@
             });
         }
         
-        // 페이지 로드 시 데이터 로드
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
