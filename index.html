@@ -26,7 +26,6 @@
             overflow: hidden;
         }
         
-        /* ⭐ 헤더 - 넓은 폭으로 최적화 */
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -75,7 +74,7 @@
             color: rgba(255,255,255,0.9);
         }
         
-        /* ⭐ 선택창 폭 확대 (140px → 200px) */
+        /* ⭐ 선택창 폭 확대 (200px) */
         .multi-select-container {
             position: relative;
             width: 200px;
@@ -145,7 +144,7 @@
             color: #333;
         }
         
-        /* ⭐ 권역 선택창 폭 확대 (120px → 160px) */
+        /* ⭐ 권역 선택창 폭 확대 (160px) */
         select {
             background: white;
             color: #333;
@@ -159,8 +158,8 @@
             cursor: pointer;
         }
         
-        /* ⭐ 환경/투자 체크박스 그룹 */
-        .env-invest-group {
+        /* ⭐ 동기화 체크박스 그룹 스타일 */
+        .filter-checkbox-group {
             display: flex;
             gap: 12px;
             background: rgba(255,255,255,0.25);
@@ -169,7 +168,7 @@
             align-items: center;
         }
         
-        .env-invest-item {
+        .filter-checkbox-item {
             display: flex;
             align-items: center;
             gap: 5px;
@@ -179,7 +178,7 @@
             color: white;
         }
         
-        .env-invest-item input[type="checkbox"] {
+        .filter-checkbox-item input[type="checkbox"] {
             width: 16px;
             height: 16px;
             cursor: pointer;
@@ -620,19 +619,19 @@
         <h1>⚡ 전국 충전기 설치현황</h1>
         <div class="controls-wrapper">
             <div class="controls">
-                <!-- ⭐ 27년만료 대상충전기 -->
+                <!-- 27년만료 대상충전기 -->
                 <label class="checkbox-wrapper">
                     <input type="checkbox" id="categoryOnlyFilter">
                     <span>🎯 27년만료 대상충전기</span>
                 </label>
                 
-                <!-- ⭐ 환경/투자 체크박스 그룹 -->
-                <div class="env-invest-group">
-                    <label class="env-invest-item">
+                <!-- ⭐ 환경/투자 체크박스 -->
+                <div class="filter-checkbox-group">
+                    <label class="filter-checkbox-item">
                         <input type="checkbox" id="envTypeFilter" checked>
                         <span>🌱 환경</span>
                     </label>
-                    <label class="env-invest-item">
+                    <label class="filter-checkbox-item">
                         <input type="checkbox" id="investTypeFilter" checked>
                         <span>💰 투자</span>
                     </label>
@@ -654,6 +653,18 @@
                             <div id="categoryOptions"></div>
                         </div>
                     </div>
+                </div>
+                
+                <!-- ⭐ 급속/완속 체크박스 -->
+                <div class="filter-checkbox-group">
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="fastChargerFilter" checked>
+                        <span>⚡ 급속</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="slowChargerFilter" checked>
+                        <span>🔌 완속</span>
+                    </label>
                 </div>
                 
                 <!-- 모델분류 -->
@@ -825,6 +836,11 @@
             return 50;
         }
         
+        // ⭐ 급속/완속 판별 함수
+        function isFastCharger(modelClass) {
+            return modelClass && modelClass.startsWith('급속');
+        }
+        
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.5, 127.8], 7);
             
@@ -909,9 +925,11 @@
             
             setupDropdowns();
             
-            // ⭐ 환경/투자 필터 이벤트 연결
-            document.getElementById('envTypeFilter').addEventListener('change', applyFilters);
-            document.getElementById('investTypeFilter').addEventListener('change', applyFilters);
+            // ⭐ 이벤트 리스너 연결
+            document.getElementById('envTypeFilter').addEventListener('change', syncEnvInvestFilters);
+            document.getElementById('investTypeFilter').addEventListener('change', syncEnvInvestFilters);
+            document.getElementById('fastChargerFilter').addEventListener('change', syncChargerTypeFilters);
+            document.getElementById('slowChargerFilter').addEventListener('change', syncChargerTypeFilters);
             document.getElementById('categoryOnlyFilter').addEventListener('change', applyFilters);
         }
         
@@ -941,6 +959,46 @@
                     });
                 }
             });
+        }
+        
+        // ⭐ 환경/투자 체크박스와 구분 복수선택 동기화
+        function syncEnvInvestFilters() {
+            const showEnv = document.getElementById('envTypeFilter').checked;
+            const showInvest = document.getElementById('investTypeFilter').checked;
+            
+            document.querySelectorAll('.category-checkbox').forEach(cb => {
+                const category = cb.value;
+                const isEnv = category.includes('환경');
+                const isInvest = category.includes('투자');
+                
+                // 환경/투자 표기가 없는 항목은 항상 체크
+                if (!isEnv && !isInvest) {
+                    cb.checked = true;
+                } else {
+                    cb.checked = (showEnv && isEnv) || (showInvest && isInvest);
+                }
+            });
+            
+            updateCategoryButton();
+        }
+        
+        // ⭐ 급속/완속 체크박스와 모델분류 동기화
+        function syncChargerTypeFilters() {
+            const showFast = document.getElementById('fastChargerFilter').checked;
+            const showSlow = document.getElementById('slowChargerFilter').checked;
+            
+            document.querySelectorAll('.model-checkbox').forEach(cb => {
+                const model = cb.value;
+                const isFast = isFastCharger(model);
+                
+                if (isFast) {
+                    cb.checked = showFast;
+                } else {
+                    cb.checked = showSlow;
+                }
+            });
+            
+            updateModelButton();
         }
         
         function updateCategoryButton() {
@@ -1049,14 +1107,10 @@
             }
         }
         
-        // ⭐ 환경/투자 필터 적용
+        // ⭐ 필터 적용 (27년만료 체크 해제 시 전체 복원 수정)
         function applyFilters() {
             const regionFilter = document.getElementById('regionFilter').value;
             const categoryOnly = document.getElementById('categoryOnlyFilter').checked;
-            
-            // ⭐ 환경/투자 체크 상태
-            const showEnv = document.getElementById('envTypeFilter').checked;
-            const showInvest = document.getElementById('investTypeFilter').checked;
             
             const selectedCategories = Array.from(
                 document.querySelectorAll('.category-checkbox:checked')
@@ -1070,26 +1124,11 @@
                 const matchRegion = regionFilter === 'all' || site.region === regionFilter;
                 const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(site.category);
                 const matchModel = selectedModels.length === 0 || selectedModels.includes(site.model_class);
+                
+                // ⭐ 27년만료 필터 수정 - 체크 시에만 적용, 해제 시 전체 표시
                 const hasCategory = !categoryOnly || (site.category && site.category.trim() !== '');
                 
-                // ⭐ 환경/투자 필터링
-                let matchType = true;
-                const category = site.category || '';
-                
-                if (!showEnv && !showInvest) {
-                    matchType = false; // 둘 다 체크 해제 시 아무것도 표시 안함
-                } else {
-                    // 환경/투자 표기가 없는 경우는 항상 통과
-                    if (!category.includes('환경') && !category.includes('투자')) {
-                        matchType = true;
-                    } else {
-                        // 환경/투자 표기가 있는 경우만 필터링 적용
-                        matchType = (showEnv && category.includes('환경')) || 
-                                   (showInvest && category.includes('투자'));
-                    }
-                }
-                
-                return matchRegion && matchCategory && matchModel && hasCategory && matchType;
+                return matchRegion && matchCategory && matchModel && hasCategory;
             });
             
             applySearchFilter();
