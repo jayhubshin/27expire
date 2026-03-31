@@ -1125,13 +1125,13 @@ function applyFilters() {
         const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(site.category);
         const matchModel = selectedModels.length === 0 || selectedModels.includes(site.model_class);
         
-        // ⭐ 수정: 27년만료 필터 - 체크 시에만 카테고리 필터링 적용
+        // ⭐ 수정: 27년만료 필터 - 체크 시에만 카테고리가 있는 항목만 선택
         let matchCategoryOnly = true;
         if (categoryOnly) {
-            // 체크되어 있을 때만 카테고리가 있는 항목만 선택
+            // 체크되어 있을 때만 카테고리가 있는 항목만 선택 (구분없음 제외)
             matchCategoryOnly = site.category && site.category.trim() !== '';
         }
-        // 체크 해제 시 matchCategoryOnly는 항상 true (필터링 없음)
+        // 체크 해제 시 matchCategoryOnly는 항상 true (구분없음 포함)
         
         return matchRegion && matchCategory && matchModel && matchCategoryOnly;
     });
