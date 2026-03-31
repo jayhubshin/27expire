@@ -1112,6 +1112,13 @@ function applyFilters() {
     const regionFilter = document.getElementById('regionFilter').value;
     const categoryOnly = document.getElementById('categoryOnlyFilter').checked;
     
+    // ⭐ 27년만료 필터 해제 시 모든 구분 자동 선택
+    if (!categoryOnly) {
+        document.querySelectorAll('.category-checkbox').forEach(cb => cb.checked = true);
+        document.getElementById('categorySelectAll').checked = true;
+        updateCategoryButton();
+    }
+    
     const selectedCategories = Array.from(
         document.querySelectorAll('.category-checkbox:checked')
     ).map(cb => cb.value);
@@ -1125,13 +1132,11 @@ function applyFilters() {
         const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(site.category);
         const matchModel = selectedModels.length === 0 || selectedModels.includes(site.model_class);
         
-        // ⭐ 수정: 27년만료 필터 - 체크 시에만 카테고리가 있는 항목만 선택
+        // ⭐ 27년만료 필터 - 체크 시에만 카테고리가 있는 항목만 선택
         let matchCategoryOnly = true;
         if (categoryOnly) {
-            // 체크되어 있을 때만 카테고리가 있는 항목만 선택 (구분없음 제외)
             matchCategoryOnly = site.category && site.category.trim() !== '';
         }
-        // 체크 해제 시 matchCategoryOnly는 항상 true (구분없음 포함)
         
         return matchRegion && matchCategory && matchModel && matchCategoryOnly;
     });
