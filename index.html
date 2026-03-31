@@ -1002,34 +1002,34 @@
         }
         
         function updateCategoryButton() {
-            const checkboxes = document.querySelectorAll('.category-checkbox');
-            const checked = Array.from(checkboxes).filter(cb => cb.checked);
-            const button = document.getElementById('categoryButtonText');
-            
-            if (checked.length === checkboxes.length) {
-                button.textContent = '전체 선택';
-            } else if (checked.length === 0) {
-                button.textContent = '선택 없음';
-            } else {
-                button.textContent = checked.length + '개 선택';
-            }
-            applyFilters();
-        }
+    const checkboxes = document.querySelectorAll('.category-checkbox');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+    const button = document.getElementById('categoryButtonText');
+    
+    if (checked.length === checkboxes.length) {
+        button.textContent = '전체 선택';
+    } else if (checked.length === 0) {
+        button.textContent = '선택 없음';
+    } else {
+        button.textContent = checked.length + '개 선택';
+    }
+    applyFilters();  // ⭐ 반드시 호출
+}
         
         function updateModelButton() {
-            const checkboxes = document.querySelectorAll('.model-checkbox');
-            const checked = Array.from(checkboxes).filter(cb => cb.checked);
-            const button = document.getElementById('modelButtonText');
-            
-            if (checked.length === checkboxes.length) {
-                button.textContent = '전체 선택';
-            } else if (checked.length === 0) {
-                button.textContent = '선택 없음';
-            } else {
-                button.textContent = checked.length + '개 선택';
-            }
-            applyFilters();
-        }
+    const checkboxes = document.querySelectorAll('.model-checkbox');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+    const button = document.getElementById('modelButtonText');
+    
+    if (checked.length === checkboxes.length) {
+        button.textContent = '전체 선택';
+    } else if (checked.length === 0) {
+        button.textContent = '선택 없음';
+    } else {
+        button.textContent = checked.length + '개 선택';
+    }
+    applyFilters();  // ⭐ 반드시 호출
+}
         
         function createMarkers(sites) {
             markerClusterGroup.clearLayers();
@@ -1138,20 +1138,7 @@ function applyFilters() {
     
     applySearchFilter();
 }
-function updateCategoryButton() {
-    const checkboxes = document.querySelectorAll('.category-checkbox');
-    const checked = Array.from(checkboxes).filter(cb => cb.checked);
-    const button = document.getElementById('categoryButtonText');
-    
-    if (checked.length === checkboxes.length) {
-        button.textContent = '전체 선택';
-    } else if (checked.length === 0) {
-        button.textContent = '선택 없음';
-    } else {
-        button.textContent = checked.length + '개 선택';
-    }
-    applyFilters();  // ⭐ 반드시 호출
-}
+
 
 function updateModelButton() {
     const checkboxes = document.querySelectorAll('.model-checkbox');
