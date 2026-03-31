@@ -1112,13 +1112,6 @@ function applyFilters() {
     const regionFilter = document.getElementById('regionFilter').value;
     const categoryOnly = document.getElementById('categoryOnlyFilter').checked;
     
-    // ⭐ 27년만료 필터 해제 시 모든 구분 자동 선택
-    if (!categoryOnly) {
-        document.querySelectorAll('.category-checkbox').forEach(cb => cb.checked = true);
-        document.getElementById('categorySelectAll').checked = true;
-        updateCategoryButton();
-    }
-    
     const selectedCategories = Array.from(
         document.querySelectorAll('.category-checkbox:checked')
     ).map(cb => cb.value);
@@ -1132,18 +1125,48 @@ function applyFilters() {
         const matchCategory = selectedCategories.length === 0 || selectedCategories.includes(site.category);
         const matchModel = selectedModels.length === 0 || selectedModels.includes(site.model_class);
         
-        // ⭐ 27년만료 필터 - 체크 시에만 카테고리가 있는 항목만 선택
+        // ⭐ 수정: 27년만료 필터와 무관하게 구분/모델 필터 적용
         let matchCategoryOnly = true;
         if (categoryOnly) {
+            // 체크 시: 카테고리가 있는 항목만 + 선택된 구분만
             matchCategoryOnly = site.category && site.category.trim() !== '';
         }
+        // 체크 해제 시: 모든 카테고리 허용 (구분 선택은 matchCategory에서 처리)
         
         return matchRegion && matchCategory && matchModel && matchCategoryOnly;
     });
     
     applySearchFilter();
 }
+function updateCategoryButton() {
+    const checkboxes = document.querySelectorAll('.category-checkbox');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+    const button = document.getElementById('categoryButtonText');
+    
+    if (checked.length === checkboxes.length) {
+        button.textContent = '전체 선택';
+    } else if (checked.length === 0) {
+        button.textContent = '선택 없음';
+    } else {
+        button.textContent = checked.length + '개 선택';
+    }
+    applyFilters();  // ⭐ 반드시 호출
+}
 
+function updateModelButton() {
+    const checkboxes = document.querySelectorAll('.model-checkbox');
+    const checked = Array.from(checkboxes).filter(cb => cb.checked);
+    const button = document.getElementById('modelButtonText');
+    
+    if (checked.length === checkboxes.length) {
+        button.textContent = '전체 선택';
+    } else if (checked.length === 0) {
+        button.textContent = '선택 없음';
+    } else {
+        button.textContent = checked.length + '개 선택';
+    }
+    applyFilters();  // ⭐ 반드시 호출
+}
         
         function applySearchFilter() {
             const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
