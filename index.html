@@ -1,3 +1,1113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전국 충전기 설치현황</title>
+    
+    <!-- 외부 라이브러리 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Malgun Gothic', -apple-system, BlinkMacSystemFont, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            margin: 0;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        
+        .controls-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            background: rgba(255,255,255,0.15);
+            padding: 8px 16px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        
+        .control-group label {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+        }
+        
+        /* ⭐ 선택창 폭 확대 (200px) */
+        .multi-select-container {
+            position: relative;
+            width: 200px;
+        }
+        
+        .multi-select-button {
+            background: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 30px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .multi-select-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 2000;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            display: none;
+            margin-top: 5px;
+        }
+        
+        .multi-select-dropdown.show {
+            display: block;
+        }
+        
+        .multi-select-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            border-bottom: 1px solid #f1f3f4;
+            color: #333;
+        }
+        
+        .multi-select-option:hover {
+            background: #f8f9fa;
+        }
+        
+        .multi-select-option input[type="checkbox"] {
+            margin-right: 8px;
+            accent-color: #667eea;
+        }
+        
+        .multi-select-all {
+            background: #f8f9fa;
+            font-weight: bold;
+            border-bottom: 2px solid #667eea;
+            color: #333;
+        }
+        
+        /* ⭐ 권역 선택창 폭 확대 (160px) */
+        select {
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            padding: 0 10px;
+            font-size: 12px;
+            height: 30px;
+            width: 160px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+        }
+        
+        /* ⭐ 동기화 체크박스 그룹 스타일 */
+        .filter-checkbox-group {
+            display: flex;
+            gap: 12px;
+            background: rgba(255,255,255,0.25);
+            padding: 6px 12px;
+            border-radius: 6px;
+            align-items: center;
+        }
+        
+        .filter-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .filter-checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4CAF50;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,255,255,0.25);
+            padding: 0 12px;
+            height: 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: #4CAF50;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .site-list-panel {
+            width: 380px;
+            background: white;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+        
+        .site-list-header {
+            background: #fff;
+            color: #333;
+            padding: 15px 20px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .search-container {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102,126,234,0.1);
+        }
+        
+        .search-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .search-btn {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            transition: all 0.3s ease;
+        }
+        
+        .search-btn.primary {
+            background: #667eea;
+        }
+        
+        .search-btn.primary:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+        
+        .search-btn.secondary {
+            background: #28a745;
+        }
+        
+        .search-btn.secondary:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+        
+        .site-list-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        .site-item {
+            background: #fff;
+            border: 1px solid #eee;
+            border-left: 4px solid #667eea;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .site-item:hover {
+            background: #f8f9fa;
+            border-color: #ddd;
+            transform: translateX(3px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .site-item-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        
+        .site-item-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .site-item-badge {
+            color: white;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .site-item-address {
+            font-size: 11px;
+            color: #6c757d;
+            line-height: 1.3;
+        }
+        
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .map-wrapper {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+        
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+        }
+        
+        .stats-panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            min-width: 220px;
+            border: 1px solid rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .stats-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 5px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 13px;
+            color: #555;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            font-size: 15px;
+            color: #2c3e50;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 25px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 12px 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            width: 160px;
+            border: 1px solid rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .legend-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 13px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+            font-size: 12px;
+            color: #444;
+        }
+        
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            margin-right: 8px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+        
+        .dashboard {
+            background: white;
+            padding: 15px 20px;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 20px;
+            height: 260px;
+            z-index: 10;
+        }
+        
+        .dashboard-card {
+            background: #fff;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            flex: 1;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        
+        .dashboard-card h3 {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 180px;
+        }
+        
+        .custom-square-marker {
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .custom-cluster-marker {
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border: 2px solid white;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .popup-content {
+            min-width: 300px;
+            font-size: 13px;
+        }
+        
+        .popup-header {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            margin: -12px -12px 12px -12px;
+            border-radius: 6px 6px 0 0;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .charger-badge {
+            background: #28a745;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .popup-row {
+            display: flex;
+            margin: 8px 0;
+            border-bottom: 1px solid #f1f3f4;
+            padding-bottom: 6px;
+        }
+        
+        .popup-label {
+            font-weight: bold;
+            color: #555;
+            width: 80px;
+            flex-shrink: 0;
+        }
+        
+        .popup-value {
+            flex: 1;
+            color: #333;
+        }
+        
+        .category-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        
+        .naver-map-btn {
+            display: block;
+            background: #03C75A;
+            color: white !important;
+            padding: 10px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .naver-map-btn:hover {
+            background: #02B350;
+            transform: translateY(-1px);
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 3px;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            font-size: 18px;
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div>데이터 로딩 중...</div>
+    </div>
+
+    <div class="header">
+        <h1>⚡ 전국 충전기 설치현황</h1>
+        <div class="controls-wrapper">
+            <div class="controls">
+                <!-- 27년만료 대상충전기 -->
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="categoryOnlyFilter">
+                    <span>🎯 27년만료 대상충전기</span>
+                </label>
+                
+                <!-- ⭐ 환경/투자 체크박스 -->
+                <div class="filter-checkbox-group">
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="envTypeFilter" checked>
+                        <span>🌱 환경</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="investTypeFilter" checked>
+                        <span>💰 투자</span>
+                    </label>
+                </div>
+                
+                <!-- 구분 -->
+                <div class="control-group">
+                    <label>🏢 구분</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select-button" id="categoryButton">
+                            <span id="categoryButtonText">전체 선택</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="categoryDropdown">
+                            <div class="multi-select-option multi-select-all">
+                                <input type="checkbox" id="categorySelectAll" checked>
+                                <span>전체 선택/해제</span>
+                            </div>
+                            <div id="categoryOptions"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ⭐ 급속/완속 체크박스 -->
+                <div class="filter-checkbox-group">
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="fastChargerFilter" checked>
+                        <span>⚡ 급속</span>
+                    </label>
+                    <label class="filter-checkbox-item">
+                        <input type="checkbox" id="slowChargerFilter" checked>
+                        <span>🔌 완속</span>
+                    </label>
+                </div>
+                
+                <!-- 모델분류 -->
+                <div class="control-group">
+                    <label>🔧 모델분류</label>
+                    <div class="multi-select-container">
+                        <div class="multi-select-button" id="modelButton">
+                            <span id="modelButtonText">전체 선택</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="multi-select-dropdown" id="modelDropdown">
+                            <div class="multi-select-option multi-select-all">
+                                <input type="checkbox" id="modelSelectAll" checked>
+                                <span>전체 선택/해제</span>
+                            </div>
+                            <div id="modelOptions"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 권역 -->
+                <div class="control-group">
+                    <label>🌏 권역</label>
+                    <select id="regionFilter">
+                        <option value="all">전체 권역</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="main-content">
+        <div class="site-list-panel">
+            <div class="site-list-header">
+                <span>📍 충전소 목록</span>
+                <span id="siteListCount">0개</span>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" 
+                       id="searchInput" 
+                       class="search-input" 
+                       placeholder="🔍 충전소명, 주소, 사이트ID로 검색..."
+                       onkeyup="handleSearch(event)">
+                <div class="search-actions">
+                    <button class="search-btn primary" onclick="performSearch()">🔍 검색</button>
+                    <button class="search-btn secondary" onclick="downloadExcel()">📥 엑셀 다운로드</button>
+                </div>
+            </div>
+            
+            <div class="site-list-content" id="siteListContent"></div>
+        </div>
+        
+        <div class="right-panel">
+            <div class="map-wrapper">
+                <div id="map"></div>
+                
+                <div class="stats-panel">
+                    <div class="stats-title">📊 현황 통계</div>
+                    <div class="stat-item">
+                        <span>총 사이트:</span>
+                        <span class="stat-value" id="totalSites">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span>총 충전기:</span>
+                        <span class="stat-value" id="totalChargers">0</span>
+                    </div>
+                    <div style="height: 1px; background: #eee; margin: 8px 0;"></div>
+                    <div class="stat-item">
+                        <span style="color: #667eea; font-weight: bold;">표시 사이트:</span>
+                        <span class="stat-value" id="visibleSites" style="color: #667eea;">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span style="color: #28a745; font-weight: bold;">표시 충전기:</span>
+                        <span class="stat-value" id="visibleChargers" style="color: #28a745;">0</span>
+                    </div>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-title">🎨 구분별 색상</div>
+                    <div id="legendItems"></div>
+                </div>
+            </div>
+            
+            <div class="dashboard">
+                <div class="dashboard-card">
+                    <h3>📊 구분별 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>🔧 모델분류별 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="modelChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="dashboard-card">
+                    <h3>🌏 권역별 분포</h3>
+                    <div class="chart-container">
+                        <canvas id="regionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allSites = [];
+        let map, currentMarkers = [], markerClusterGroup;
+        let categoryChart, modelChart, regionChart;
+        let currentFilteredSites = [], searchFilteredSites = [];
+        
+        async function loadData() {
+            try {
+                const response = await fetch('charging_data.json');
+                if (!response.ok) {
+                    throw new Error('데이터 파일을 찾을 수 없습니다.');
+                }
+                allSites = await response.json();
+                console.log('✅ ' + allSites.length + '개 사이트 로드 완료');
+                
+                document.getElementById('loadingOverlay').style.display = 'none';
+                
+                initMap();
+                initFilters();
+                initCharts();
+                currentFilteredSites = allSites.slice();
+                searchFilteredSites = allSites.slice();
+                createMarkers(allSites);
+                updateStats();
+                updateCharts(allSites);
+                createLegend();
+            } catch (error) {
+                console.error('❌ 데이터 로드 실패:', error);
+                document.getElementById('loadingOverlay').innerHTML = 
+                    '<div style="color: red;">❌ 데이터 로드 실패</div>' +
+                    '<div style="font-size: 14px; margin-top: 10px;">charging_data.json 파일을 확인해주세요.</div>';
+            }
+        }
+        
+        const timeColors = {
+            '만료': '#E74C3C', '1개월': '#FF8C42', '3개월': '#F39C12',
+            '6개월': '#27AE60', '26하반기': '#17A2B8', '27상반기': '#007BFF',
+            '27하반기': '#6F42C1', '기타': '#ADB5BD'
+        };
+        
+        function getCategoryColor(category) {
+            if (!category) return timeColors['기타'];
+            if (category.includes('만료')) return timeColors['만료'];
+            if (category.includes('1개월')) return timeColors['1개월'];
+            if (category.includes('3개월')) return timeColors['3개월'];
+            if (category.includes('6개월')) return timeColors['6개월'];
+            if (category.includes('26하반기')) return timeColors['26하반기'];
+            if (category.includes('27상반기')) return timeColors['27상반기'];
+            if (category.includes('27하반기')) return timeColors['27하반기'];
+            return timeColors['기타'];
+        }
+        
+        const modelPriority = {
+            '알박구형': 1, '구형대': 2, '알박신형': 3, '이카플러그': 4, '신형대': 5, '신형소': 6
+        };
+        
+        function getModelPriority(model) {
+            if (modelPriority[model]) return modelPriority[model];
+            if (model.includes('급속')) return 100;
+            return 50;
+        }
+        
+        // ⭐ 급속/완속 판별 함수
+        function isFastCharger(modelClass) {
+            return modelClass && modelClass.startsWith('급속');
+        }
+        
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([36.5, 127.8], 7);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+            
+            markerClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                iconCreateFunction: function(cluster) {
+                    const markers = cluster.getAllChildMarkers();
+                    const colors = markers.map(m => m.options.markerColor);
+                    const dominantColor = colors[0] || '#667eea';
+                    const count = cluster.getChildCount();
+                    const size = count < 10 ? 35 : count < 100 ? 45 : 55;
+                    
+                    return L.divIcon({
+                        html: '<div class="custom-cluster-marker" style="background-color: ' + dominantColor + '; width: ' + size + 'px; height: ' + size + 'px; font-size: ' + Math.min(14, 10 + size/10) + 'px;">' + count + '</div>',
+                        className: 'custom-div-icon',
+                        iconSize: [size, size]
+                    });
+                }
+            });
+        }
+        
+        function initFilters() {
+            const regions = new Set();
+            const models = new Set();
+            const categories = new Set();
+            
+            allSites.forEach(site => {
+                if (site.region) regions.add(site.region);
+                if (site.model_class) models.add(site.model_class);
+                if (site.category && site.category.trim() !== '') categories.add(site.category);
+            });
+            
+            const regionSelect = document.getElementById('regionFilter');
+            Array.from(regions).sort().forEach(region => {
+                const option = document.createElement('option');
+                option.value = option.textContent = region;
+                regionSelect.appendChild(option);
+            });
+            regionSelect.addEventListener('change', applyFilters);
+            
+            const categoryContainer = document.getElementById('categoryOptions');
+            const sortedCategories = Array.from(categories).sort((a, b) => {
+                const aIsInvest = a.includes('투자');
+                const bIsInvest = b.includes('투자');
+                if (aIsInvest && !bIsInvest) return -1;
+                if (!aIsInvest && bIsInvest) return 1;
+                return a.localeCompare(b);
+            });
+            
+            sortedCategories.forEach(cat => {
+                const div = document.createElement('div');
+                div.className = 'multi-select-option';
+                div.innerHTML = '<input type="checkbox" class="category-checkbox" value="' + cat + '" checked> ' + cat;
+                categoryContainer.appendChild(div);
+                div.querySelector('input').addEventListener('change', updateCategoryButton);
+            });
+            
+            const modelContainer = document.getElementById('modelOptions');
+            const sortedModels = Array.from(models).sort((a, b) => {
+                const priorityA = getModelPriority(a);
+                const priorityB = getModelPriority(b);
+                if (priorityA !== priorityB) return priorityA - priorityB;
+                return a.localeCompare(b);
+            });
+            
+            sortedModels.forEach(model => {
+                const div = document.createElement('div');
+                div.className = 'multi-select-option';
+                div.innerHTML = '<input type="checkbox" class="model-checkbox" value="' + model + '" checked> ' + model;
+                modelContainer.appendChild(div);
+                div.querySelector('input').addEventListener('change', updateModelButton);
+            });
+            
+            setupDropdowns();
+            
+            // ⭐ 이벤트 리스너 연결
+            document.getElementById('envTypeFilter').addEventListener('change', syncEnvInvestFilters);
+            document.getElementById('investTypeFilter').addEventListener('change', syncEnvInvestFilters);
+            document.getElementById('fastChargerFilter').addEventListener('change', syncChargerTypeFilters);
+            document.getElementById('slowChargerFilter').addEventListener('change', syncChargerTypeFilters);
+            document.getElementById('categoryOnlyFilter').addEventListener('change', applyFilters);
+        }
+        
+        function setupDropdowns() {
+            document.getElementById('categoryButton').addEventListener('click', function() {
+                document.getElementById('categoryDropdown').classList.toggle('show');
+            });
+            
+            document.getElementById('modelButton').addEventListener('click', function() {
+                document.getElementById('modelDropdown').classList.toggle('show');
+            });
+            
+            document.getElementById('categorySelectAll').addEventListener('change', function() {
+                document.querySelectorAll('.category-checkbox').forEach(cb => cb.checked = this.checked);
+                updateCategoryButton();
+            });
+            
+            document.getElementById('modelSelectAll').addEventListener('change', function() {
+                document.querySelectorAll('.model-checkbox').forEach(cb => cb.checked = this.checked);
+                updateModelButton();
+            });
+            
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.multi-select-container')) {
+                    document.querySelectorAll('.multi-select-dropdown').forEach(dd => {
+                        dd.classList.remove('show');
+                    });
+                }
+            });
+        }
+        
+        // ⭐ 환경/투자 체크박스와 구분 복수선택 동기화
+        function syncEnvInvestFilters() {
+            const showEnv = document.getElementById('envTypeFilter').checked;
+            const showInvest = document.getElementById('investTypeFilter').checked;
+            
+            document.querySelectorAll('.category-checkbox').forEach(cb => {
+                const category = cb.value;
+                const isEnv = category.includes('환경');
+                const isInvest = category.includes('투자');
+                
+                // 환경/투자 표기가 없는 항목은 항상 체크
+                if (!isEnv && !isInvest) {
+                    cb.checked = true;
+                } else {
+                    cb.checked = (showEnv && isEnv) || (showInvest && isInvest);
+                }
+            });
+            
+            updateCategoryButton();
+        }
+        
+        // ⭐ 급속/완속 체크박스와 모델분류 동기화
+        function syncChargerTypeFilters() {
+            const showFast = document.getElementById('fastChargerFilter').checked;
+            const showSlow = document.getElementById('slowChargerFilter').checked;
+            
+            document.querySelectorAll('.model-checkbox').forEach(cb => {
+                const model = cb.value;
+                const isFast = isFastCharger(model);
+                
+                if (isFast) {
+                    cb.checked = showFast;
+                } else {
+                    cb.checked = showSlow;
+                }
+            });
+            
+            updateModelButton();
+        }
+        
+        function updateCategoryButton() {
+            const checkboxes = document.querySelectorAll('.category-checkbox');
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            const button = document.getElementById('categoryButtonText');
+            
+            if (checked.length === checkboxes.length) {
+                button.textContent = '전체 선택';
+            } else if (checked.length === 0) {
+                button.textContent = '선택 없음';
+            } else {
+                button.textContent = checked.length + '개 선택';
+            }
+            applyFilters();
+        }
+        
+        function updateModelButton() {
+            const checkboxes = document.querySelectorAll('.model-checkbox');
+            const checked = Array.from(checkboxes).filter(cb => cb.checked);
+            const button = document.getElementById('modelButtonText');
+            
+            if (checked.length === checkboxes.length) {
+                button.textContent = '전체 선택';
+            } else if (checked.length === 0) {
+                button.textContent = '선택 없음';
+            } else {
+                button.textContent = checked.length + '개 선택';
+            }
+            applyFilters();
+        }
+        
+        function createMarkers(sites) {
+            markerClusterGroup.clearLayers();
+            currentMarkers = [];
+            
+            sites.forEach(site => {
+                const color = getCategoryColor(site.category);
+                
+                const markerIcon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: '<div class="custom-square-marker" style="background-color: ' + color + '; width: 34px; height: 34px; font-size: 13px;">' + site.charger_count + '</div>',
+                    iconSize: [34, 34],
+                    iconAnchor: [17, 17],
+                    popupAnchor: [0, -17]
+                });
+                
+                const marker = L.marker([site.latitude, site.longitude], { 
+                    icon: markerIcon,
+                    markerColor: color
+                });
+                
+                const searchQuery = site.address + ' 전기차';
+                const naverMapUrl = 'https://map.naver.com/p/search/' + encodeURIComponent(searchQuery);
+                const categoryDisplay = site.category ? 
+                    '<span class="category-badge" style="background-color: ' + color + ';">' + site.category + '</span>' :
+                    '<span style="color: #999;">구분값 없음</span>';
+                
+                const popupContent = 
+                    '<div class="popup-content">' +
+                        '<div class="popup-header">' +
+                            '<span>' + site.station_name + '</span>' +
+                            '<span class="charger-badge">' + site.charger_count + '기</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">🏷️ 사이트ID:</span>' +
+                            '<span class="popup-value">' + site.site_id + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">🏢 충전소ID:</span>' +
+                            '<span class="popup-value">' + site.station_id + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">📋 구분:</span>' +
+                            '<span class="popup-value">' + categoryDisplay + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">🔧 모델:</span>' +
+                            '<span class="popup-value">' + site.model_class + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">🌏 권역:</span>' +
+                            '<span class="popup-value">' + site.region + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">📍 주소:</span>' +
+                            '<span class="popup-value">' + site.address + '</span>' +
+                        '</div>' +
+                        '<div class="popup-row">' +
+                            '<span class="popup-label">📅 계약:</span>' +
+                            '<span class="popup-value">' + site.contract_start + ' ~ ' + site.contract_end + '</span>' +
+                        '</div>' +
+                        '<a href="' + naverMapUrl + '" target="_blank" class="naver-map-btn">' +
+                            '🗺️ 네이버 지도에서 검색' +
+                        '</a>' +
+                    '</div>';
+                
+                marker.bindPopup(popupContent, { maxWidth: 400 });
+                marker.siteData = site;
+                currentMarkers.push(marker);
+                markerClusterGroup.addLayer(marker);
+            });
+            
+            if (!map.hasLayer(markerClusterGroup)) {
+                map.addLayer(markerClusterGroup);
+            }
+        }
+        
+        // ⭐ 필터 적용 (27년만료 체크 해제 시 전체 복원 수정)
 function applyFilters() {
     const regionFilter = document.getElementById('regionFilter').value;
     const categoryOnly = document.getElementById('categoryOnlyFilter').checked;
@@ -28,3 +1138,254 @@ function applyFilters() {
     
     applySearchFilter();
 }
+
+        
+        function applySearchFilter() {
+            const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+            
+            if (!searchTerm) {
+                searchFilteredSites = currentFilteredSites.slice();
+            } else {
+                searchFilteredSites = currentFilteredSites.filter(site => 
+                    site.station_name.toLowerCase().includes(searchTerm) ||
+                    site.address.toLowerCase().includes(searchTerm) ||
+                    site.site_id.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            createMarkers(searchFilteredSites);
+            updateStats(searchFilteredSites);
+            updateCharts(searchFilteredSites);
+            updateSiteList(searchFilteredSites);
+        }
+        
+        function handleSearch(event) {
+            if (event.key === 'Enter') {
+                performSearch();
+            } else {
+                applySearchFilter();
+            }
+        }
+        
+        function performSearch() {
+            applySearchFilter();
+            if (searchFilteredSites.length > 0) {
+                const bounds = L.latLngBounds(searchFilteredSites.map(s => [s.latitude, s.longitude]));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+        
+        function downloadExcel() {
+            if (!searchFilteredSites || searchFilteredSites.length === 0) {
+                alert('다운로드할 데이터가 없습니다.');
+                return;
+            }
+            
+            const excelData = searchFilteredSites.map(site => ({
+                '사이트ID': site.site_id,
+                '충전소ID': site.station_id,
+                '충전소명': site.station_name,
+                '구분': site.category || '구분값 없음',
+                '모델분류': site.model_class,
+                '권역': site.region,
+                '충전기수': site.charger_count,
+                '주소': site.address,
+                '계약시작일': site.contract_start,
+                '계약종료일': site.contract_end,
+                '경도': site.longitude,
+                '위도': site.latitude
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '충전소목록');
+            
+            const today = new Date().toISOString().slice(0,10).replace(/-/g, '');
+            const searchTerm = document.getElementById('searchInput').value.trim();
+            const fileName = searchTerm ? 
+                '충전소검색결과_' + searchTerm + '_' + today + '.xlsx' :
+                '충전소목록_' + today + '.xlsx';
+            
+            XLSX.writeFile(wb, fileName);
+            alert(searchFilteredSites.length + '개 충전소 데이터가 다운로드되었습니다.');
+        }
+        
+        function updateStats(sites = allSites) {
+            const totalChargers = allSites.reduce((sum, s) => sum + s.charger_count, 0);
+            const visibleChargers = sites.reduce((sum, s) => sum + s.charger_count, 0);
+            
+            document.getElementById('totalSites').textContent = allSites.length.toLocaleString();
+            document.getElementById('totalChargers').textContent = totalChargers.toLocaleString();
+            document.getElementById('visibleSites').textContent = sites.length.toLocaleString();
+            document.getElementById('visibleChargers').textContent = visibleChargers.toLocaleString();
+        }
+        
+        function updateSiteList(sites) {
+            const container = document.getElementById('siteListContent');
+            const countEl = document.getElementById('siteListCount');
+            container.innerHTML = '';
+            countEl.textContent = sites.length + '개';
+            
+            const displaySites = sites.slice(0, 300);
+            
+            displaySites.forEach(site => {
+                const item = document.createElement('div');
+                item.className = 'site-item';
+                item.style.borderLeftColor = getCategoryColor(site.category);
+                
+                const categoryBadge = site.category ? 
+                    '<span class="site-item-badge" style="background: ' + getCategoryColor(site.category) + ';">' + site.category + '</span>' :
+                    '<span class="site-item-badge" style="background: #999;">구분없음</span>';
+                
+                item.innerHTML = 
+                    '<div class="site-item-name">' + site.station_name + '</div>' +
+                    '<div class="site-item-info">' +
+                        '<span class="site-item-badge" style="background: #28a745;">' + site.charger_count + '기</span>' +
+                        categoryBadge +
+                        '<span class="site-item-badge" style="background: #667eea;">' + site.model_class + '</span>' +
+                        '<span class="site-item-badge" style="background: #fd7e14;">' + site.region + '</span>' +
+                    '</div>' +
+                    '<div class="site-item-address">' + site.address + '</div>';
+                
+                item.onclick = function() {
+                    map.setView([site.latitude, site.longitude], 15);
+                    const marker = currentMarkers.find(m => m.siteData && m.siteData.site_id === site.site_id);
+                    if (marker) marker.openPopup();
+                };
+                
+                container.appendChild(item);
+            });
+            
+            if (sites.length > 300) {
+                const notice = document.createElement('div');
+                notice.style.cssText = 'text-align: center; padding: 10px; color: #999; font-size: 12px; font-style: italic;';
+                notice.textContent = '결과가 많아 300개만 표시합니다. 전체 데이터는 엑셀 다운로드를 이용하세요.';
+                container.appendChild(notice);
+            }
+        }
+        
+        function initCharts() {
+            const barConfig = {
+                type: 'bar',
+                data: { 
+                    labels: [], 
+                    datasets: [{ 
+                        data: [], 
+                        backgroundColor: [],
+                        borderWidth: 1,
+                        borderColor: '#fff'
+                    }] 
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            ticks: { 
+                                font: { size: 10 },
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            };
+            
+            categoryChart = new Chart(document.getElementById('categoryChart'), JSON.parse(JSON.stringify(barConfig)));
+            modelChart = new Chart(document.getElementById('modelChart'), JSON.parse(JSON.stringify(barConfig)));
+            regionChart = new Chart(document.getElementById('regionChart'), JSON.parse(JSON.stringify(barConfig)));
+        }
+        
+        function sortObjectByValueDesc(obj) {
+            return Object.entries(obj)
+                .sort((a, b) => b[1] - a[1])
+                .reduce((result, [key, value]) => {
+                    result[key] = value;
+                    return result;
+                }, {});
+        }
+        
+        function updateCharts(sites) {
+            const categoryStats = {};
+            sites.forEach(s => {
+                const category = s.category || '구분없음';
+                let period = '기타';
+                
+                if (category.includes('만료')) period = '만료';
+                else if (category.includes('1개월')) period = '1개월';
+                else if (category.includes('3개월')) period = '3개월';
+                else if (category.includes('6개월')) period = '6개월';
+                else if (category.includes('26하반기')) period = '26하반기';
+                else if (category.includes('27상반기')) period = '27상반기';
+                else if (category.includes('27하반기')) period = '27하반기';
+                else if (category === '구분없음') period = '구분없음';
+                
+                categoryStats[period] = (categoryStats[period] || 0) + 1;
+            });
+            
+            const modelStats = {};
+            sites.forEach(s => {
+                modelStats[s.model_class] = (modelStats[s.model_class] || 0) + 1;
+            });
+            
+            const regionStats = {};
+            sites.forEach(s => {
+                regionStats[s.region] = (regionStats[s.region] || 0) + 1;
+            });
+            
+            const sortedCategory = sortObjectByValueDesc(categoryStats);
+            const sortedModel = sortObjectByValueDesc(modelStats);
+            const sortedRegion = sortObjectByValueDesc(regionStats);
+            
+            updateChart(categoryChart, sortedCategory, Object.keys(sortedCategory).map(k => getCategoryColor(k)));
+            updateChart(modelChart, sortedModel, generateColors(Object.keys(sortedModel).length));
+            updateChart(regionChart, sortedRegion, generateColors(Object.keys(sortedRegion).length));
+        }
+        
+        function updateChart(chart, data, colors) {
+            if (chart) {
+                chart.data.labels = Object.keys(data);
+                chart.data.datasets[0].data = Object.values(data);
+                chart.data.datasets[0].backgroundColor = colors;
+                chart.update();
+            }
+        }
+        
+        function generateColors(count) {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#74B9FF', '#A29BFE'];
+            return Array(count).fill(0).map((_, i) => colors[i % colors.length]);
+        }
+        
+        function createLegend() {
+            const legendItems = document.getElementById('legendItems');
+            const periods = [
+                { label: '만료', key: '만료' },
+                { label: '1개월', key: '1개월' },
+                { label: '3개월', key: '3개월' },
+                { label: '6개월', key: '6개월' },
+                { label: '26하반기', key: '26하반기' },
+                { label: '27상반기', key: '27상반기' },
+                { label: '27하반기', key: '27하반기' },
+                { label: '구분없음', key: '기타' }
+            ];
+            
+            periods.forEach(period => {
+                const color = timeColors[period.key];
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = 
+                    '<div class="legend-color" style="background-color: ' + color + ';"></div>' +
+                    '<span>' + period.label + '</span>';
+                legendItems.appendChild(item);
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
